@@ -30,7 +30,7 @@
 
 ```bash
 # Клонировать репозиторий
-git clone <ваш-репо>
+git clone github.com/Omichpolyebok/sited/
 cd site-main
 
 # Запустить контейнеры
