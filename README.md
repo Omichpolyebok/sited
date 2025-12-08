@@ -139,7 +139,7 @@ MIT
 Добавление администратора
 Создать файл /var/www/mysite/add_admin.php:
 
-    
+```    
 <?php
 // add_admin.php
 require_once '/var/www/mysite/src/db.php';
@@ -165,7 +165,7 @@ try {
 } catch (PDOException $e) {
     echo "Ошибка: " . $e->getMessage();
 }
-
+```
 В консоли php /var/www/mysite/add_admin.php
 Важно: После проверки удалить файл add_admin.php, чтобы никто случайно не сбросил админа.
 
