@@ -12,7 +12,7 @@ services:
     image: nginx:alpine
     container_name: mysite_nginx
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - .:/var/www/mysite
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
