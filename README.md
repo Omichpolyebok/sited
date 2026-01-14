@@ -31,7 +31,7 @@
 ```bash
 # Клонировать репозиторий
 git clone https://github.com/Omichpolyebok/sited.git
-cd site-main
+cd sited
 
 # Запустить контейнеры
 docker compose up -d --build
@@ -134,41 +134,3 @@ docker exec mysite_php kill -USR2 1
 
 MIT
 
-
-
-Добавление администратора
-Создать файл /var/www/mysite/add_admin.php:
-
-```    
-<?php
-// add_admin.php
-require_once '/var/www/mysite/src/db.php';
-
-$email = 'admin@tsj.local'; // Можно поменять
-$password = 'admin';        // Пароль
-$fullName = 'Председатель ТСЖ';
-$role = 'admin';
-
-// Генерируем правильный хеш
-$hash = password_hash($password, PASSWORD_DEFAULT);
-
-try {
-    $pdo->exec("DELETE FROM users WHERE email = '$email'");
-    $stmt = $pdo->prepare("INSERT INTO users (email, password, full_name, role, is_verified, apartment) VALUES (?, ?, ?, ?, 1, 'Офис')");
-    $stmt->execute([$email, $hash, $fullName, $role]);
-
-    echo "Администратор успешно создан!<br>";
-    echo "Email: $email<br>";
-    echo "Пароль: $password<br>";
-    echo "<a href='public/login.php'>Войти</a>";
-
-} catch (PDOException $e) {
-    echo "Ошибка: " . $e->getMessage();
-}
-```
-В консоли php /var/www/mysite/add_admin.php
-Важно: После проверки удалить файл add_admin.php, чтобы никто случайно не сбросил админа.
-
-rm /var/www/mysite/add_admin.php
-
-    
