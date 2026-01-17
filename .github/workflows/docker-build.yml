@@ -1,0 +1,25 @@
+name: Docker Build Test
+
+# Инструкция: запускать этот процесс каждый раз, когда кто-то делает push в ветку main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Копируем код репозитория в виртуальную машину GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Пробуем собрать Docker-образ
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag my-php-app:latest
+
+      # 3. (Опционально) Здесь можно добавить запуск контейнера для теста
+      - name: Run container test
+        run: docker run --name test-container -d my-php-app:latest
