@@ -26,7 +26,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             # 1. Заходим в папку с проектом
-            cd /var/www/mysite  # УКАЖИТЕ ТУТ ВАШ ПУТЬ К ПРОЕКТУ НА VPS
+            cd /root/server-setup/website  # УКАЖИТЕ ТУТ ВАШ ПУТЬ К ПРОЕКТУ НА VPS
             
             # 2. Подтягиваем изменения из GitHub
             git pull origin main
