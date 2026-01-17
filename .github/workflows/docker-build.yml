@@ -25,13 +25,13 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # 1. Заходим в папку с проектом
-
-            /root/server-setup/website  # УКАЖИТЕ ТУТ ВАШ ПУТЬ К ПРОЕКТУ НА VPS
+            # 1. Переходим в папку (используйте полный путь от корня!)
+            cd /home/${{ secrets.SSH_USER }}/server-setup/website 
             
-            # 2. Подтягиваем изменения из GitHub
+            # 2. Обновляем код
             git pull origin main
             
-            # 3. Пересобираем и запускаем контейнеры
-            # --build заставит Docker увидеть изменения в Dockerfile или PHP-файлах
+            # 3. Запускаем Docker по полному пути
+            # Команда 'which docker' на 99% серверов выдает /usr/bin/docker
+            # Мы используем полный путь, чтобы bash не смог сказать "я не нашел команду"
             /usr/bin/docker compose up -d --build
