@@ -22,8 +22,7 @@ deploy:
     username: ${{ secrets.SSH_USER }}
     key: ${{ secrets.SSH_KEY }}
     script: |
-      TARGET_DIR="/home/${{ secrets.SSH_USER }}/server-setup/website"
-      cd "$TARGET_DIR"
+      cd server-setup/website
       git pull origin main
       /usr/bin/docker compose up -d --build
       /usr/bin/docker image prune -f
