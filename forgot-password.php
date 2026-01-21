@@ -1,10 +1,5 @@
 <?php
-// forgot-password.php - ИСПРАВЛЕННЫЙ ВАРИАНТ
-
-// ВКЛЮЧАЕМ ОТЛАДКУ
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// forgot-password.php - Восстановление пароля
 
 // Стартуем сессию ПЕРВЫМ делом
 if (session_status() === PHP_SESSION_NONE) {
@@ -13,10 +8,6 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Определяем абсолютный путь к корню
 define('BASE_PATH', dirname(__FILE__));
-
-// Отладочная информация
-echo "<!-- Debug: BASE_PATH = " . BASE_PATH . " -->\n";
-echo "<!-- Debug: Current dir = " . getcwd() . " -->\n";
 
 // Проверяем существование файлов перед подключением
 $required_files = [
@@ -27,11 +18,8 @@ $required_files = [
 ];
 
 foreach ($required_files as $file) {
-    echo "<!-- Debug: Checking $file -->\n";
     if (!file_exists($file)) {
-        die("<pre style='color:red'>ERROR: File not found: $file\n" .
-            "Available files in " . dirname($file) . ":\n" .
-            print_r(scandir(dirname($file)), true) . "</pre>");
+        die("Ошибка конфигурации приложения.");
     }
 }
 
@@ -41,29 +29,15 @@ require_once BASE_PATH . '/inc/init.php';
 require_once BASE_PATH . '/src/db.php';
 require_once BASE_PATH . '/src/mail.php';
 
-echo "<!-- Debug: All files loaded successfully -->\n";
-
 // Проверяем подключение к БД
 if (!isset($pdo)) {
-    die("<pre style='color:red'>ERROR: \$pdo is not defined after including db.php</pre>");
-}
-
-echo "<!-- Debug: Database connection established -->\n";
-
-// Функция verifyTurnstile если её нет
-if (!function_exists('verifyTurnstile')) {
-    function verifyTurnstile($response, $secret) {
-        // Заглушка для теста
-        return !empty($response);
-    }
+    die("Ошибка подключения к базе данных.");
 }
 
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
-    echo "<!-- Debug: POST request received -->\n";
-    
     $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
     
     // Простая валидация
@@ -71,29 +45,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
         $error = "Неверный формат email";
     }
     
-    // Проверка Turnstile (если есть)
+    // Проверка Turnstile (если используется в продакшене)
     if (!$error && isset($_POST['cf-turnstile-response'])) {
-        // Замените на реальные ключи
-        $turnstile_response = $_POST['cf-turnstile-response'];
-        $secret_key = "YOUR_SECRET_KEY_HERE";
-        
-        if (!verifyTurnstile($turnstile_response, $secret_key)) {
-            $error = "Пожалуйста, подтвердите, что вы не робот";
+        // Проверяем, определена ли функция и конфигурация доступна
+        if (!function_exists('verifyTurnstile') || !defined('TURNSTILE_SECRET_KEY')) {
+            // В продакшене это должно быть настроено правильно
+            $error = "Проверка безопасности временно недоступна. Пожалуйста, попробуйте позже.";
+        } else {
+            $turnstile_response = $_POST['cf-turnstile-response'];
+            $turnstileResult = verifyTurnstile(TURNSTILE_SECRET_KEY, $turnstile_response);
+            
+            if (!$turnstileResult['success']) {
+                $error = "Проверка безопасности не пройдена. Пожалуйста, попробуйте снова.";
+            }
         }
     }
     
     if (!$error) {
         try {
-            echo "<!-- Debug: Checking user in database -->\n";
-            
             // Проверяем существование пользователя
             $stmt = $pdo->prepare("SELECT id, full_name, is_verified FROM users WHERE email = ?");
             $stmt->execute([$email]);
             $user = $stmt->fetch();
             
             if ($user) {
-                echo "<!-- Debug: User found: " . htmlspecialchars($user['email'] ?? 'unknown') . " -->\n";
-                
                 if (empty($user['is_verified']) || $user['is_verified'] == 0) {
                     $error = "Сначала подтвердите ваш email адрес";
                 } else {
@@ -133,8 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
                             $reset_link = "https://" . $_SERVER['HTTP_HOST'] . "/reset-password.php?token=" . 
                                           urlencode($token) . "&email=" . urlencode($email);
                             
-                            echo "<!-- Debug: Reset link: $reset_link -->\n";
-                            
                             // Отправляем письмо
                             if (function_exists('sendPasswordResetEmail')) {
                                 $sent = sendPasswordResetEmail($email, $user['full_name'], $reset_link);
@@ -156,12 +129,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
             } else {
                 // Для безопасности показываем одинаковое сообщение
                 $success = "Если email зарегистрирован, инструкции будут отправлены.";
-                echo "<!-- Debug: User not found for email: $email -->\n";
             }
             
         } catch (PDOException $e) {
             $error = "Ошибка базы данных. Пожалуйста, попробуйте позже.";
-            echo "<!-- Debug: PDO Exception: " . htmlspecialchars($e->getMessage()) . " -->\n";
         }
     }
 }
@@ -235,8 +206,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
         </div>
         
         <!-- Cloudflare Turnstile (если используется) -->
-        <?php if (defined('CF_TURNSTILE_SITE_KEY')): ?>
-        <div class="cf-turnstile" data-sitekey="<?php echo CF_TURNSTILE_SITE_KEY; ?>"></div>
+        <?php if (defined('TURNSTILE_SITE_KEY')): ?>
+        <div class="cf-turnstile" data-sitekey="<?php echo TURNSTILE_SITE_KEY; ?>"></div>
         <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         <?php endif; ?>
         
@@ -248,14 +219,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
         <a href="login.php">Вернуться к входу</a> | 
         <a href="register.php">Регистрация</a>
     </p>
-    
-    <!-- Отладочная информация (скрытая) -->
-    <div style="display:none; background:#f0f0f0; padding:10px; margin-top:20px; font-size:12px;">
-        <h3>Debug Info:</h3>
-        <p>BASE_PATH: <?php echo BASE_PATH; ?></p>
-        <p>Current file: <?php echo __FILE__; ?></p>
-        <p>Session ID: <?php echo session_id(); ?></p>
-        <p>Database: <?php echo isset($pdo) ? 'Connected' : 'Not connected'; ?></p>
-    </div>
 </body>
 </html>

@@ -43,6 +43,6 @@ try {
     http_response_code(500);
     exit('Internal Server Error (DB)');
 }
-if (file_exists(__DIR__ . '/config.local.php')) {
-    include __DIR__ . '/config.local.php';
+if (file_exists('/var/www/mysite/inc/config.local.php')) {
+    include '/var/www/mysite/inc/config.local.php';
 }

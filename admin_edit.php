@@ -10,11 +10,17 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     die("Доступ запрещен. Только для председателя.");
 }
 
-$id = $_GET['id'] ?? null;
-if (!$id) die("Не указан ID заявки");
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$id) die("Не указан ID заявки или передано неверное значение");
 
 // 2. Обработка сохранения формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Проверка CSRF токена
+    $csrf_post = $_POST['csrf'] ?? '';
+    if (!hash_equals($_SESSION['csrf'] ?? '', $csrf_post)) {
+        die("Ошибка безопасности (CSRF). Обновите страницу.");
+    }
+    
     $status = $_POST['status'];
     $comment = trim($_POST['admin_comment']);
     
@@ -75,6 +81,8 @@ if (!$req) die("Заявка не найдена");
 
         <!-- Форма ответа -->
         <form method="post">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars($_SESSION['csrf']) ?>">
+            
             <label>Статус заявки:</label>
             <select name="status">
                 <option value="new" <?= $req['status'] == 'new' ? 'selected' : '' ?>>Новая (New)</option>

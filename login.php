@@ -22,14 +22,31 @@ function verifyTurnstile($secretKey, $responseToken) {
         'http' => [
             'method' => 'POST',
             'header' => 'Content-Type: application/x-www-form-urlencoded',
-            'content' => http_build_query($data)
+            'content' => http_build_query($data),
+            'timeout' => 5  // Таймаут 5 секунд
         ]
     ];
     
     $context = stream_context_create($options);
-    $result = file_get_contents($url, false, $context);
     
-    return json_decode($result, true);
+    // Обработка ошибок при HTTP-запросе
+    set_error_handler(function() { return true; });
+    $result = file_get_contents($url, false, $context);
+    restore_error_handler();
+    
+    // Проверка результата
+    if ($result === false) {
+        error_log("Turnstile API недоступна или произошла ошибка сети");
+        return ['success' => false, 'error' => 'network_error'];
+    }
+    
+    $decoded = json_decode($result, true);
+    if ($decoded === null) {
+        error_log("Ошибка декодирования JSON от Turnstile: " . $result);
+        return ['success' => false, 'error' => 'json_decode_error'];
+    }
+    
+    return $decoded;
 }
 
 $error = '';
