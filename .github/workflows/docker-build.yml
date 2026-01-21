@@ -25,15 +25,23 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # 1. Заходим в папку с проектом
             export PATH=$PATH:/usr/local/bin:/usr/bin
-            cd server-setup/website  
+            cd server-setup/website || { echo "Directory not found"; exit 1; }
             
-            # 2. Подтягиваем изменения из GitHub
-            git pull origin main
+            echo "--- Текущая папка: $(pwd) ---"
             
-            # 3. Пересобираем и запускаем контейнеры
-            # --build заставит Docker увидеть изменения в Dockerfile или PHP-файлах
-            docker compose up -d --build || /usr/local/bin/docker-compose up -d --build || docker-compose up -d --build
-            /usr/bin/docker image prune -f
-            echo "Deploy finished successfully."
+            # 1. Жестко сбрасываем состояние git, чтобы исключить конфликты
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "--- Последний коммит на сервере теперь: ---"
+            git log -1 --format="%s (%h)"
+            
+            # 2. Пересборка
+            echo "--- Запуск Docker Compose ---"
+            docker compose up -d --build
+            
+            # 3. Проверка: запущены ли контейнеры?
+            docker compose ps
+            
+            echo "Deploy finished successfully at $(date)"
