@@ -45,16 +45,16 @@ CREATE TABLE password_resets (
 );
 
 CREATE TABLE meter_readings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    apartment VARCHAR(50) NOT NULL,
-    cold_water DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
-    hot_water DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
-    electricity DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
-    reading_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    month_year DATE NOT NULL, -- КРИТИЧЕСКИ ВАЖНО!
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    apartment TEXT NOT NULL,
+    cold_water REAL NOT NULL DEFAULT 0.000,
+    hot_water REAL NOT NULL DEFAULT 0.000,
+    electricity REAL NOT NULL DEFAULT 0.000,
+    reading_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    month_year DATE NOT NULL, 
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY user_month_apartment (user_id, apartment, month_year) -- Запрет дублей
+    UNIQUE (user_id, apartment, month_year) -- Запрет дублей
 );
 
 -- Создайте индекс для быстрого поиска
