@@ -44,6 +44,23 @@ CREATE TABLE password_resets (
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE meter_readings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    apartment VARCHAR(50) NOT NULL,
+    cold_water DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
+    hot_water DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
+    electricity DECIMAL(10, 3) NOT NULL DEFAULT 0.000,
+    reading_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    month_year DATE NOT NULL, -- КРИТИЧЕСКИ ВАЖНО!
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY user_month_apartment (user_id, apartment, month_year) -- Запрет дублей
+);
+
+-- Создайте индекс для быстрого поиска
+CREATE INDEX idx_month_year ON meter_readings(month_year);
+CREATE INDEX idx_user_apartment ON meter_readings(user_id, apartment);
+
 CREATE INDEX idx_password_resets_token ON password_resets(token_hash);
 CREATE INDEX idx_password_resets_expires ON password_resets(expires_at);
 CREATE INDEX idx_password_resets_user ON password_resets(user_id);
