@@ -5,25 +5,24 @@ require_once '/var/www/mysite/inc/init.php';
 require_once '/var/www/mysite/inc/header.php';
 require_once '/var/www/mysite/src/db.php';
 
-// Более строгая проверка админа
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("HTTP/1.1 403 Forbidden");
     die("Доступ запрещен.");
 }
 
-// Фильтры и пагинация
-$month_filter = $_GET['month'] ?? date('Y-m');
+// Фильтры
+$month_filter = $_GET['month'] ?? '';
 $apartment_filter = $_GET['apartment'] ?? '';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 50;
 $offset = ($page - 1) * $per_page;
 
-// Подготавливаем запрос с фильтрами
 $where = [];
 $params = [];
 
 if (!empty($month_filter)) {
-    $where[] = "DATE_FORMAT(r.month_year, '%Y-%m') = ?";
+    // SQLite синтаксис strftime
+    $where[] = "strftime('%Y-%m', r.month_year) = ?";
     $params[] = $month_filter;
 }
 
@@ -34,7 +33,7 @@ if (!empty($apartment_filter)) {
 
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-// Общее количество записей для пагинации
+// 1. Считаем общее количество
 $count_stmt = $pdo->prepare("
     SELECT COUNT(*) as total 
     FROM meter_readings r 
@@ -42,38 +41,32 @@ $count_stmt = $pdo->prepare("
     $where_clause
 ");
 $count_stmt->execute($params);
-$total = $count_stmt->fetch()['total'];
+$total = $count_stmt->fetch()['total'] ?? 0;
 $total_pages = ceil($total / $per_page);
 
-// Основной запрос
-$stmt = $pdo->prepare("
+// 2. Основной запрос (SQLite LIMIT/OFFSET исправлен)
+$sql = "
     SELECT r.*, u.full_name, u.email, u.phone
     FROM meter_readings r 
     JOIN users u ON r.user_id = u.id 
     $where_clause
     ORDER BY r.reading_date DESC 
-    LIMIT ? OFFSET ?
-");
+    LIMIT " . (int)$per_page . " OFFSET " . (int)$offset;
 
-// Добавляем параметры пагинации
-$params_with_pagination = array_merge($params, [$per_page, $offset]);
-$stmt->execute($params_with_pagination);
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params); 
 $readings = $stmt->fetchAll();
 
-// Получаем уникальные месяцы для фильтра
+// 3. Месяцы для фильтра (SQLite синтаксис)
 $months_stmt = $pdo->query("
-    SELECT DISTINCT DATE_FORMAT(month_year, '%Y-%m') as month 
+    SELECT DISTINCT strftime('%Y-%m', month_year) as month 
     FROM meter_readings 
     ORDER BY month DESC
 ");
 $available_months = $months_stmt->fetchAll();
 
-// Получаем список квартир
-$apartments_stmt = $pdo->query("
-    SELECT DISTINCT apartment 
-    FROM meter_readings 
-    ORDER BY apartment
-");
+// 4. Список квартир
+$apartments_stmt = $pdo->query("SELECT DISTINCT apartment FROM meter_readings ORDER BY apartment");
 $available_apartments = $apartments_stmt->fetchAll();
 ?>
 
