@@ -30,7 +30,7 @@ RUN composer dump-autoload --optimize
 RUN chown -R www-data:www-data /var/www/mysite
 
 # Объявляем папку томом, чтобы volumes_from в Nginx мог её увидеть
-VOLUME ["/var/www/mysite"]
+#VOLUME ["/var/www/mysite"]
 
 # Entrypoint
 COPY entrypoint.sh /entrypoint.sh

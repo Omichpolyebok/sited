@@ -5,8 +5,9 @@ services:
     build: .
     container_name: mysite_php
     volumes:
-      # Мы НЕ пробрасываем весь код. 
-      # Мы пробрасываем ТОЛЬКО папку с базой, чтобы файл .db жил на сервере
+      # На сервере мы всё равно делаем git pull, 
+      # поэтому проброс папки гарантирует, что код будет самым свежим
+      - .:/var/www/mysite
       - ./db:/var/www/mysite/db
     restart: always
 
@@ -16,11 +17,7 @@ services:
     ports:
       - "8080:80"
     volumes:
+      - .:/var/www/mysite  # Nginx видит ту же папку, что и PHP
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
-      # Nginx должен отдавать статику, поэтому ему тоже нужен доступ к файлам.
-      # Но так как кода на сервере "как бы нет" (он в образе), 
-      # мы используем volumes_from, чтобы Nginx залез внутрь контейнера PHP
-    volumes_from:
-      - php
     depends_on:
       - php
