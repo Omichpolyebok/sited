@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-DB_DIR="/var/www/mysite/db"
-DB_FILE="$DB_DIR/users.db"
+DB_DIR="/var/www/mysite/_hidden_db_"
+DB_FILE="$DB_DIR/database.db"
 
 # Создаем папку БД если её нет (важно при первом запуске)
 if [ ! -d "$DB_DIR" ]; then
