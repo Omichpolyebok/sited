@@ -38,11 +38,3 @@ function reset_attempts(): void {
     $_SESSION['failed_login'] = ['count' => 0, 'first_ts' => 0];
 }
 
-// Подключение к базе через PDO (SQLite)
-try {
-    $pdo = new PDO('sqlite:/var/www/mysite/db/users.db');
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (Exception $e) {
-    http_response_code(500);
-    exit('Internal Server Error (DB)');
-}

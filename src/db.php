@@ -4,10 +4,8 @@
 // 1. Определяем правильные пути
 // __DIR__ это /var/www/mysite/src
 // dirname(__DIR__) это /var/www/mysite
-$baseDir = dirname(__DIR__); 
-
-// Папка базы данных
-$dbFolder = $baseDir . '/db';
+$baseDir = '/var/www'; // Абсолютный путь в контейнере
+$dbFolder = $baseDir . '/database_protected'; // Изменили путь к папке
 $dbPath = $dbFolder . '/database.db';
 $schemaPath = $dbFolder . '/schema.sql';
 

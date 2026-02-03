@@ -7,7 +7,8 @@ services:
     restart: always
     env_file: .env
     volumes:
-      - ./_hidden_db_:/var/www/mysite/db
+      - .:/var/www/mysite          # код сайта
+      - ./_hidden_db_:/var/www/database_protected:ro  # ← ТОЛЬКО для PHP, только чтение!
 
   nginx:
     image: nginx:alpine
@@ -17,7 +18,7 @@ services:
       - "8080:80"
     volumes:
       # Nginx все еще нужен доступ к папке проекта для отдачи статики
-      - .:/var/www/mysite:ro
+      - .:/var/www/mysite:ro       # ← НЕТ монтирования _hidden_db_!
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - php 
