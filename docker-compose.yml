@@ -8,6 +8,7 @@ services:
     env_file: .env
     volumes:
       - ./public:/var/www/mysite:ro
+      - ./vendor:/var/www/mysite/vendor:ro
       - ./private:/var/www/private:rw
 
   nginx:
