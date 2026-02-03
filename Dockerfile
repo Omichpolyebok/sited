@@ -26,6 +26,9 @@ RUN composer dump-autoload --optimize
 # Права на файлы (в проде лучше не давать всё www-data, но для начала ок)
 RUN chown -R www-data:www-data /var/www/mysite
 
+# init_db.php должен быть доступен даже если /var/www/mysite замонтирован volume'ом
+COPY .docker/init_db.php /init_db.php
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

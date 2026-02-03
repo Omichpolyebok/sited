@@ -5,7 +5,7 @@
 // __DIR__ это /var/www/mysite/src
 // dirname(__DIR__) это /var/www/mysite
 $baseDir = '/var/www'; // Абсолютный путь в контейнере
-$dbFolder = $baseDir . '/database_protected'; // Изменили путь к папке
+$dbFolder = $baseDir . '/private/_hidden_db_';
 $dbPath = $dbFolder . '/database.db';
 $schemaPath = $dbFolder . '/schema.sql';
 

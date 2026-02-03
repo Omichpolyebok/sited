@@ -1,8 +1,8 @@
 <?php
 // .docker/init_db.php — инициализация БД со схемой (используется в entrypoint.sh)
 
-$dbPath = '/var/www/mysite/_hidden_db_/database.db';
-$schemaPath = '/var/www/mysite/_hidden_db_/schema.sql';
+$dbPath = '/var/www/private/_hidden_db_/database.db';
+$schemaPath = '/var/www/private/_hidden_db_/schema.sql';
 
 // Удаляем старую БД если существует
 if (file_exists($dbPath)) {
