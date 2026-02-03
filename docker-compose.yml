@@ -10,23 +10,16 @@ services:
       # Пробрасываем ТОЛЬКО папку с базой. 
       # Код берется из образа, собранного в Dockerfile
       - ./db:/var/www/mysite/db
-    #healthcheck:
-      #test: ["CMD-SHELL", "cgi-fcgi -bind -connect 127.0.0.1:9000 || exit 1"]
-      #interval: 30s
-      #timeout: 5s
-      #retries: 3
 
   nginx:
     image: nginx:alpine
     container_name: mysite_nginx
     restart: always
     ports:
-      # Доступ только локально! Снаружи зайти нельзя.
       - "8080:80"
     volumes:
       # Nginx все еще нужен доступ к папке проекта для отдачи статики
       - .:/var/www/mysite:ro
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
-      php:
-        condition: service_healthy
+      - php 
