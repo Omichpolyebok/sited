@@ -15,10 +15,9 @@ jobs:
         run: docker build -t mysite-test .
 
       - name: PHP Syntax Check (Lint)
-        # Проверяем все файлы .php на ошибки синтаксиса
-        run: docker run --rm mysite-test find . -name "*.php" -exec php -l {} \;
-
-# ... (твоя секция test остается без изменений)
+        # Мы добавляем --entrypoint "", чтобы проигнорировать запуск php-fpm
+        # и просто выполнить команду проверки синтаксиса
+        run: docker run --rm --entrypoint "" mysite-test find . -name "*.php" -exec php -l {} \;
 
   deploy:
     runs-on: ubuntu-latest
