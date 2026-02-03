@@ -15,7 +15,7 @@ services:
     container_name: mysite_nginx
     restart: always
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     volumes:
       # Nginx все еще нужен доступ к папке проекта для отдачи статики
       - .:/var/www/mysite:ro       # ← НЕТ монтирования _hidden_db_!
