@@ -1,17 +1,21 @@
 # Базы данных
-db/
 *.sqlite
 *.db
 users.db
+db/
+
 # Секреты
 *.pem
 *.key
 .env
 config/*.secret.php
+inc/config.local.php
+config.local.php
 
 # Логи
 *.log
 error_log
+logs/
 
 # Кэш и временные файлы
 *.swp
@@ -32,19 +36,8 @@ backup/
 *.bak
 *.old
 
-# Зависимости
+# Зависимости и сборки
 vendor/
 node_modules/
 dist/
 build/
-src/
-src/config.php
-db/
-inc/init.php
-        composer.json
-        composer.lock
-        logs/
-        register.php.save
-        test_send.php
-inc/config.local.php
-config.local.php
