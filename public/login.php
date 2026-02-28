@@ -9,7 +9,15 @@ require_once '/var/www/mysite/inc/header.php';
 require_once '/var/www/mysite/inc/init.php';
 require_once '/var/www/mysite/src/db.php';
 
+// флаги разработки
+$disableTurnstile = getenv('DISABLE_TURNSTILE') === '1';
+$disableEmail = getenv('DISABLE_EMAIL') === '1';
+
 function verifyTurnstile($secretKey, $responseToken) {
+
+        if (getenv('DISABLE_TURNSTILE') === '1') {
+        return ['success' => true];
+    }
     $url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
     
     $data = [
@@ -56,23 +64,32 @@ if (isset($_GET['verified'])) {
     $message = "Email подтвержден! Теперь вы можете войти.";
 }
 
+// если почта отключена и пользователь приходит непосредственно на login,
+// можно показать сообщение об автоматической верификации
+if ($disableEmail) {
+    $message = "Режим разработки: почта отключена, все аккаунты считаются подтверждёнными.";
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $cf_turnstile_response = $_POST['cf-turnstile-response'] ?? '';
     
-    // 1. Проверка Turnstile
-    if (empty($cf_turnstile_response)) {
-        $error = "Пожалуйста, пройдите проверку безопасности.";
-    } else {
-        $turnstileResult = verifyTurnstile(TURNSTILE_SECRET_KEY, $cf_turnstile_response);
-        
-        if (!$turnstileResult['success']) {
-            $error = "Проверка безопасности не пройдена. Пожалуйста, попробуйте снова.";
+    // 1. Проверка Turnstile (можно отключить)
+    if (!$disableTurnstile) {
+        if (empty($cf_turnstile_response)) {
+            $error = "Пожалуйста, пройдите проверку безопасности.";
+        } else {
+            $turnstileResult = verifyTurnstile(TURNSTILE_SECRET_KEY, $cf_turnstile_response);
+            
+            if (!$turnstileResult['success']) {
+                $error = "Проверка безопасности не пройдена. Пожалуйста, попробуйте снова.";
+            }
         }
     }
     
-    // 2. Если Turnstile прошел, проверяем логин/пароль
+    // 2. Если Turnstile прошел (или отключен), проверяем логин/пароль
     if (!$error) {
         try {
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
@@ -80,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password'])) {
-                // Проверка подтверждения почты
-                if ($user['is_verified'] == 0) {
+                // Проверка подтверждения почты (можно пропустить в dev)
+                if (!$disableEmail && $user['is_verified'] == 0) {
                     $error = "Пожалуйста, подтвердите ваш email перед входом.";
                 } else {
                     // ВСЁ ОК: Записываем данные в сессию
@@ -113,8 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Вход в ТСЖ</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
+<?php if (!$disableTurnstile): ?>
     <!-- Подключение Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+<?php endif; ?>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans leading-relaxed">
 <?php render_header(); ?>
@@ -132,10 +151,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="password" name="password" required class="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
         </label>
         
+<?php if (!$disableTurnstile): ?>
         <!-- Cloudflare Turnstile Widget -->
         <div class="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 min-h-[65px]">
             <div id="turnstile-widget" class="w-full"></div>
         </div>
+<?php endif; ?>
         
         <button type="submit" id="submit-btn" class="mt-5 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700">Войти</button>
     </form>
@@ -145,6 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 // Инициализация Turnstile с задержкой
+<?php if (!$disableTurnstile): ?>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('login-form');
     const submitBtn = document.getElementById('submit-btn');
@@ -243,5 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<?php endif; ?>
 </body>
 </html>

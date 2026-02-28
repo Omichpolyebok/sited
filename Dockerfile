@@ -1,14 +1,13 @@
-FROM php:8.1-fpm
+FROM php:8.2-fpm
 
-# Устанавливаем зависимости и чистим кэш в одном слое
+# Устанавливаем системные зависимости для Postgres (libpq-dev)
 RUN apt-get update && apt-get install -y \
-    sqlite3 \
-    libsqlite3-dev \
+    libpq-dev \
     zip \
     unzip \
     git \
     libfcgi-bin \
-    && docker-php-ext-install pdo pdo_sqlite \
+    && docker-php-ext-install pdo pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer 
@@ -30,6 +29,8 @@ RUN chown -R www-data:www-data /var/www/mysite
 COPY .docker/init_db.php /init_db.php
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+    # make sure script uses Unix line endings so /bin/bash shebang works in container
+    && sed -i 's/\r$//' /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

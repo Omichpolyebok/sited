@@ -26,6 +26,11 @@ $error = '';
 
 // Функция проверки Turnstile
 function verifyTurnstile($secretKey, $responseToken) {
+    // при отключённом turnstile сразу успех
+    if (getenv('DISABLE_TURNSTILE') === '1') {
+        return ['success' => true];
+    }
+
     $url = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
     
     $data = [
@@ -79,23 +84,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $apartment = trim($_POST['apartment'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
 
+    // режим разработки: пропускаем e-mail и/или капчу
+    $disableEmail = getenv('DISABLE_EMAIL') === '1';
+    $disableTurnstile = getenv('DISABLE_TURNSTILE') === '1';
+    $autoVerify = $disableEmail; // если почта отключена, сразу активируем
+
     // 2. Валидация
     if (!hash_equals($_SESSION['csrf'] ?? '', $csrf_post)) {
         die("Ошибка безопасности (CSRF). Обновите страницу.");
     }
 
-    // 3. Валидация Turnstile 
-    if (empty($cf_turnstile_response)) {
-        $error = "Пожалуйста, пройдите проверку безопасности.";
-    } else {
-        $turnstileResult = verifyTurnstile(TURNSTILE_SECRET_KEY, $cf_turnstile_response);
-        
-        if (!$turnstileResult['success']) {
-            $error = "Проверка безопасности не пройдена. Пожалуйста, попробуйте снова.";
-            // Для отладки можно добавить:
-            // error_log("Turnstile error: " . print_r($turnstileResult, true));
+    // 3. Валидация Turnstile (можно отключить через env DISABLE_TURNSTILE=1)
+    if (getenv('DISABLE_TURNSTILE') !== '1') {
+        if (empty($cf_turnstile_response)) {
+            $error = "Пожалуйста, пройдите проверку безопасности.";
+        } else {
+            $turnstileResult = verifyTurnstile(TURNSTILE_SECRET_KEY, $cf_turnstile_response);
+            
+            if (!$turnstileResult['success']) {
+                $error = "Проверка безопасности не пройдена. Пожалуйста, попробуйте снова.";
+                // Для отладки можно добавить:
+                // error_log("Turnstile error: " . print_r($turnstileResult, true));
+            }
         }
-    }
+    } // else: turnstile пропущена
+
    if (!$error) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Некорректный email.";
@@ -134,26 +147,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $pdo->prepare("
                         UPDATE users 
                         SET password = ?, full_name = ?, apartment = ?, phone = ?, 
-                            verify_code_hash = ?, verify_expires = ?, is_verified = 0, verify_attempts = 0 
+                            verify_code_hash = ?, verify_expires = ?, is_verified = ?, verify_attempts = 0 
                         WHERE id = ?
                     ");
-                    $stmt->execute([$hash, $fullName, $apartment, $phone, $codeHash, $expires, $exists['id']]);
+                    $stmt->execute([$hash, $fullName, $apartment, $phone, $codeHash, $expires, $autoVerify ? 1 : 0, $exists['id']]);
                 }
             } else {
                 // Новый пользователь
                 // role по умолчанию 'resident' задается в базе, поэтому в запросе можно не указывать
                 $stmt = $pdo->prepare("
                     INSERT INTO users (email, password, full_name, apartment, phone, verify_code_hash, verify_expires, is_verified, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ");
-                $stmt->execute([$email, $hash, $fullName, $apartment, $phone, $codeHash, $expires]);
+                $stmt->execute([$email, $hash, $fullName, $apartment, $phone, $codeHash, $expires, $autoVerify ? 1 : 0]);
             }
 
             // Если не было ошибок выше (например, с уже существующим юзером)
             if (!$error) {
                 // Отправляем письмо
                 try {
-                    $sent = sendVerificationCode($email, (string)$code);
+                    if (getenv('DISABLE_EMAIL') === '1') {
+                        // тестовая среда: не рассылать, но считаем, что письмо отправлено
+                        $sent = true;
+                    } else {
+                        $sent = sendVerificationCode($email, (string)$code);
+                    }
                     
                     if ($sent) {
                         $pdo->commit();
@@ -161,8 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         while (ob_get_level()) {
                             ob_end_clean();
                         }
-                        // Переход на подтверждение
-                        header("Location: verify.php?email=" . urlencode($email));
+                        // Переход на следующую страницу
+                        if ($autoVerify) {
+                            header("Location: login.php?verified=1");
+                        } else {
+                            header("Location: verify.php?email=" . urlencode($email));
+                        }
                         exit;
                     } else {
                         throw new Exception("Не удалось отправить письмо.");
@@ -190,8 +212,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <title>Регистрация в ТСЖ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
+<?php if (getenv('DISABLE_TURNSTILE') !== '1'): ?>
   <!-- Подключение Turnstile - УБЕРИТЕ async defer для контроля загрузки -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+<?php endif; ?>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans leading-relaxed">
   <?php render_header(); ?>
@@ -242,10 +266,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </label>
       </div>
 
+<?php if (getenv('DISABLE_TURNSTILE') !== '1'): ?>
       <!-- Cloudflare Turnstile Widget -->
       <div class="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 min-h-[65px]">
           <div id="turnstile-widget" class="w-full"></div>
       </div>
+<?php endif; ?>
 
       <button type="submit" id="submit-btn" class="mt-5 inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2.5 font-semibold text-white hover:bg-blue-700">Зарегистрироваться</button>
 
@@ -255,6 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
   </div>
 
+<?php if (getenv('DISABLE_TURNSTILE') !== '1'): ?>
   <script>
   // Инициализация Turnstile с задержкой
   document.addEventListener('DOMContentLoaded', function() {
@@ -345,6 +372,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           
           // Дополнительная проверка скрытого поля
           const hiddenInput = document.querySelector('input[name="cf-turnstile-response"]');
+<?php endif; ?>
           if (!hiddenInput || !hiddenInput.value) {
               e.preventDefault();
               alert('Ошибка проверки безопасности. Обновите страницу и попробуйте снова.');

@@ -40,6 +40,10 @@ function getMailer(): PHPMailer {
 }
 
 function sendVerificationCode(string $to, string $code): bool {
+    // если в окружении запрещена отправка — ведём себя как будто письмо отправлено
+    if (getenv('DISABLE_EMAIL') === '1') {
+        return true;
+    }
     $log = '/var/www/mysite/logs/mail_debug.log';
     
     try {

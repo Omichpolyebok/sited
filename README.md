@@ -1,14 +1,15 @@
 # Веб-приложение для управления ТСЖ
 
-Сервис упрощает коммуникацию между жильцами и председателем ТСЖ.
-Жильцы подают заявки на ремонт, председатель управляет ими через панель администратора.
+Мини‑система для коммуникации жильцов с председателем ТСЖ: жильцы подают
+заявки, передают показания счётчиков, председатель управляет их статусами и
+выставляет счета.
 
 ## Технологии
 
-- **Backend:** PHP 8.1 (нативный, без фреймворков)
-- **Database:** SQLite 3
+- **Backend:** PHP 8.2 (нативный, без фреймворков)
+- **Database:** PostgreSQL (ранее SQLite, теперь в контейнере `db`)
 - **Frontend:** HTML5, CSS3, Vanilla JS
-- **Infrastructure:** Docker, Docker Compose, Nginx, PHP-FPM
+- **Инфраструктура:** Docker, Docker Compose, Nginx, PHP‑FPM
 
 ## Возможности
 
@@ -23,91 +24,125 @@
 
 ### Требования
 
-- Docker & Docker Compose
-- Git
+- Docker & Docker Compose (3.8+)
+- Git (для клонирования)
 
 ### Установка и запуск
 
 ```bash
 # Клонировать репозиторий
 git clone https://github.com/Omichpolyebok/sited.git
-cd sited
+cd sited/sited      
 
-# Запустить контейнеры
+# Построить образы и запустить стек
 docker compose up -d --build
-
-# Получить IP адрес WSL2 (если используется WSL2)
-wsl ip addr show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}'
 ```
 
-### Доступ к приложению
+На Windows всё запускается под WSL2, порт уже проброшен на локальный хост.
+Поэтому приложение доступно по `http://127.0.0.1:8080` или если вы настроите
+`hosts` — через свой домен (например `mysite.local`).
 
-- **URL:** `http://<ваш-ip>:8080` (на другом PC) или `http://127.0.0.1:8080` (локально)
-- **Админ по умолчанию:**
-  - Email: `admin@yandex.ru`
-  - Пароль: `admin`
+> ⚠️ если вы ранее монтировали `./vendor` как том, убедитесь, что в
+> `docker-compose.yml` используется `vendor_data` volume или что локальная
+> папка содержит зависимости (см. ниже).
+
+### Отключение проверки и почты (для разработки)
+
+Для упрощённого тестирования можно пропустить Cloudflare Turnstile (капчу)
+и отправку писем. Просто задайте переменные окружения:
+
+```yaml
+services:
+  app:
+    environment:
+      - DISABLE_TURNSTILE=1
+      - DISABLE_EMAIL=1
+```
+
+Либо добавьте их в `.env` (пример ниже).
+
+### Администратор по умолчанию
+
+| Роль  | Email            | Пароль |
+|-------|------------------|--------|
+| Админ | admin@yandex.ru  | admin  |
+
+После первого запуска можно зарегистрировать других пользователей или
+изменить запись в базе.
 
 ## Структура проекта
 
 ```
-site-main/
+.sited/                  # рабочая папка репозитория
 ├── docker/              # Конфигурация Nginx
 │   └── nginx/conf.d/
-├── src/                 # PHP логика приложения
-│   ├── config.php       # Конфиг (SMTP, БД параметры)
-│   ├── db.php           # Подключение к SQLite
-│   └── mail.php         # Отправка писем через PHPMailer
-├── inc/                 # Включаемые файлы (header, init)
-├── db/                  # База данных и схема
-│   ├── schema.sql       # SQL схема и дефолтный админ
-│   └── users.db         # SQLite БД (создаётся автоматически)
-├── *.php                # Основные страницы (index, login, register и т.д.)
-├── docker-compose.yml   # Конфиг Docker Compose
-├── Dockerfile           # Конфиг PHP контейнера
-└── entrypoint.sh        # Скрипт инициализации контейнера
+├── public/              # фронтенд и PHP‑страницы (index.php, login.php и т.д.)
+├── src/                 # серверная логика
+│   ├── config.php       # настройки (SMTP, прочие переменные)
+│   ├── db.php           # подключение к PostgreSQL через PDO
+│   └── mail.php         # обёртка на PHPMailer
+├── inc/                 # include‑файлы (header, init)
+├── db/                  # схемы для БД
+│   └── schema.sql       # PostgreSQL схема (инициализация через volume)
+├── .docker/             # вспомогательные скрипты для образа
+│   └── init_db.php      # удалённая инициализация (используется старой версией образа, можно игнорировать)
+├── docker-compose.yml   # стек (app, web, db)
+├── Dockerfile           # PHP‑образ (composer, pdo_pgsql и т.д.)
+├── entrypoint.sh        # права/инициализация
+├── README.md            # этот файл
+└── vendor_data/         # Docker volume для зависимостей
 ```
 
 ## Настройка SMTP (Email)
 
-Отредактируйте `src/config.php` и укажите параметры вашего почтового сервера:
+Письма отправляются через PHPMailer, конфигурация находится в `src/config.php`.
+Если вы тестируете локально и не хотите рассылать почту, просто включите
+`DISABLE_EMAIL=1` (см. раздел выше).
 
 ```php
 return [
-    'smtp_host'   => 'smtp.yandex.ru',       // Ваш SMTP хост
-    'smtp_user'   => 'your-email@yandex.ru', // Ваш email
-    'smtp_pass'   => 'app-password',         // Пароль приложения
-    'smtp_port'   => 465,                    // SMTP порт (465 для SSL, 587 для TLS)
+    'smtp_host'   => 'smtp.yandex.ru',       // SMTP хост
+    'smtp_user'   => 'your-email@yandex.ru', // логин
+    'smtp_pass'   => 'app-password',         // пароль приложения
+    'smtp_port'   => 465,                    // 465 для SSL, 587 для TLS
     'from_email'  => 'your-email@yandex.ru',
     'from_name'   => 'ТСЖ Система',
 ];
 ```
 
+
 ## Управление контейнерами
 
 ```bash
-# Запустить
-docker compose up -d
-
-# Остановить
-docker compose down
-
-# Пересоздать с новой сборкой образа
+# Запустить/пересоздать (при изменении Dockerfile или зависимостей)
 docker compose up -d --build
 
-# Просмотр логов PHP
-docker logs mysite_php
+# Остановить и удалить (удаляет тома db и vendor)
+docker compose down -v
 
-# Просмотр логов Nginx
-docker logs mysite_nginx
+# Только остановить
+docker compose stop
+
+# Просмотр логов приложения
+docker compose logs -f app
+
+docker compose logs -f web    # nginx
+
+docker compose logs -f db     # postgres
 ```
+
 
 ## Учетные данные по умолчанию
 
-| Роль | Email | Пароль |
-|------|-------|--------|
-| Админ | admin@yandex.ru | admin |
+| Роль  | Email           | Пароль |
+|-------|-----------------|--------|
+| Админ | admin@yandex.ru | admin  |
 
-**⚠️ Измените пароль администратора перед использованием в production!**
+Чтобы добавить следующее окружение пользователя, можете выполнить
+SQL-запрос прямо в контейнере PostgreSQL или использовать веб‑форму
+(регистрация + код подтверждения).
+
+> **⚠️ Обязательно смените пароль администратора в продакшне!**
 
 ## Разработка
 

@@ -12,6 +12,13 @@ require_once '/var/www/mysite/inc/init.php';
 require_once '/var/www/mysite/inc/header.php';
 require_once '/var/www/mysite/src/db.php';
 
+// при тестировании без почты сразу уходим на логин
+if (getenv('DISABLE_EMAIL') === '1') {
+    while (ob_get_level()) ob_end_clean();
+    header('Location: login.php?verified=1');
+    exit;
+}
+
 
 $error = '';
 $success = '';

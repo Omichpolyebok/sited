@@ -35,6 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_request'])) {
         
         header("Location: my-requests.php?success=1");
         exit;
+    } else {
+        $error = "Заголовок и описание должны быть длиной не менее 6 символов.";
     }
 }
 
@@ -56,6 +58,11 @@ $requests = $stmt->fetchAll();
 <?php render_header(); ?>
 <div class="w-11/12 max-w-5xl mx-auto my-8 bg-white p-8 rounded-lg shadow shadow-black/5">
     <h1 class="text-2xl font-bold text-slate-900">Мои заявки в ТСЖ</h1>
+    <?php if (!empty(
+        $error
+    )): ?>
+        <div class="mt-4 mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-800"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
 
     <!-- Форма подачи -->
     <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6">
